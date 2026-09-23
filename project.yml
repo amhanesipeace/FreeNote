@@ -1,0 +1,29 @@
+name: FreeNote
+options:
+  bundleIdPrefix: com.peaceamhanesi
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    # Uses the free "personal team" signing when you build to your own device.
+    CODE_SIGN_STYLE: Automatic
+    GENERATE_INFOPLIST_FILE: YES
+    # iPad + iPhone, all orientations (a notebook wants landscape too).
+    TARGETED_DEVICE_FAMILY: "1,2"
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+
+targets:
+  FreeNote:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.peaceamhanesi.freenote
+        INFOPLIST_KEY_CFBundleDisplayName: FreeNote

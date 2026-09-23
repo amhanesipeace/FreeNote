@@ -1,0 +1,14 @@
+# Xcode / build artifacts
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# The .xcodeproj is generated from project.yml by XcodeGen, so we don't commit it.
+FreeNote.xcodeproj/
+
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
