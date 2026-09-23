@@ -5,9 +5,10 @@ struct NoteListView: View {
     @EnvironmentObject var store: NoteStore
     @State private var renaming: Note?
     @State private var renameText = ""
+    @State private var path: [Note] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if store.notes.isEmpty {
                     emptyState
@@ -23,6 +24,7 @@ struct NoteListView: View {
                     }
                 }
             }
+            .onAppear(perform: handleUITestLaunch)
             .alert("Rename note", isPresented: renameBinding) {
                 TextField("Title", text: $renameText)
                 Button("Cancel", role: .cancel) { renaming = nil }
@@ -71,6 +73,15 @@ struct NoteListView: View {
 
     private func newNote() {
         store.addNote()
+    }
+
+    /// Test hook: `-UITEST_OPEN_CANVAS` opens straight into a note so the canvas
+    /// can be captured in an automated screenshot. No effect in normal use.
+    private func handleUITestLaunch() {
+        guard ProcessInfo.processInfo.arguments.contains("UITEST_OPEN_CANVAS"),
+              path.isEmpty else { return }
+        let note = store.notes.first ?? store.addNote(title: "Sample")
+        path = [note]
     }
 
     private var renameBinding: Binding<Bool> {
