@@ -48,6 +48,13 @@ final class NoteStore: ObservableObject {
         saveIndex()
     }
 
+    func setTemplate(_ template: PageTemplate, for note: Note) {
+        guard let i = notes.firstIndex(where: { $0.id == note.id }) else { return }
+        notes[i].template = template
+        notes[i].modifiedAt = .now
+        saveIndex()
+    }
+
     // MARK: - Drawing persistence
 
     func drawingURL(for note: Note) -> URL {

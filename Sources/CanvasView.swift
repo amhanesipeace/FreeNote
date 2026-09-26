@@ -10,6 +10,8 @@ import PencilKit
 /// canvas is a later step; see the roadmap.)
 struct CanvasView: UIViewRepresentable {
     @Binding var drawing: PKDrawing
+    /// Paper style drawn behind the ink.
+    var template: PageTemplate
     /// Called whenever the drawing changes, so the editor can auto-save.
     var onChange: (PKDrawing) -> Void
 
@@ -27,12 +29,21 @@ struct CanvasView: UIViewRepresentable {
         // Allow drawing with finger too (not just Apple Pencil) so it works in
         // the Simulator and for people without a Pencil.
         canvas.drawingPolicy = .anyInput
-        canvas.backgroundColor = .systemBackground
+        canvas.backgroundColor = .clear   // let the paper view show through
 
         // Expansive, zoomable canvas.
         canvas.minimumZoomScale = 0.5
         canvas.maximumZoomScale = 4.0
         canvas.contentSize = Self.canvasSize
+
+        // Paper view: a content subview (so it scrolls with the ink) filling the
+        // whole canvas, filled with the template's tiled pattern. Kept at the
+        // back so ink always draws on top.
+        let paper = UIView(frame: CGRect(origin: .zero, size: Self.canvasSize))
+        paper.backgroundColor = template.patternColor()
+        canvas.addSubview(paper)
+        canvas.sendSubviewToBack(paper)
+        context.coordinator.paperView = paper
 
         // Show Apple's floating tool picker and make the canvas active for it.
         let picker = context.coordinator.toolPicker
@@ -48,11 +59,17 @@ struct CanvasView: UIViewRepresentable {
         if canvas.drawing != drawing {
             canvas.drawing = drawing
         }
+        // Update paper style if it changed, and keep it at the back.
+        if let paper = context.coordinator.paperView {
+            paper.backgroundColor = template.patternColor()
+            canvas.sendSubviewToBack(paper)
+        }
     }
 
     final class Coordinator: NSObject, PKCanvasViewDelegate {
         let parent: CanvasView
         let toolPicker = PKToolPicker()
+        weak var paperView: UIView?
 
         init(_ parent: CanvasView) { self.parent = parent }
 

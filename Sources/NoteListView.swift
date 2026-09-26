@@ -81,7 +81,13 @@ struct NoteListView: View {
         guard ProcessInfo.processInfo.arguments.contains("UITEST_OPEN_CANVAS"),
               path.isEmpty else { return }
         let note = store.notes.first ?? store.addNote(title: "Sample")
-        path = [note]
+        // Let a second arg pick the paper style for screenshots, e.g. "grid".
+        if let tArg = ProcessInfo.processInfo.arguments.first(where: {
+            PageTemplate(rawValue: $0) != nil }),
+           let t = PageTemplate(rawValue: tArg) {
+            store.setTemplate(t, for: note)
+        }
+        path = [store.notes.first(where: { $0.id == note.id }) ?? note]
     }
 
     private var renameBinding: Binding<Bool> {

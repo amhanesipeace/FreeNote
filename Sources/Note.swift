@@ -10,14 +10,22 @@ struct Note: Identifiable, Codable, Equatable, Hashable {
     var title: String
     var createdAt: Date
     var modifiedAt: Date
+    /// Paper style. Optional so notes saved before templates existed still
+    /// decode; `nil` is treated as `.lined` in the UI.
+    var template: PageTemplate?
 
     init(id: UUID = UUID(), title: String = "Untitled",
-         createdAt: Date = .now, modifiedAt: Date = .now) {
+         createdAt: Date = .now, modifiedAt: Date = .now,
+         template: PageTemplate? = .lined) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
+        self.template = template
     }
+
+    /// The effective paper style (defaults to lined).
+    var pageTemplate: PageTemplate { template ?? .lined }
 
     /// Filename for this note's drawing bytes inside the documents directory.
     var drawingFileName: String { "\(id.uuidString).drawing" }

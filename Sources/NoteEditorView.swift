@@ -9,18 +9,36 @@ struct NoteEditorView: View {
     @State private var drawing = PKDrawing()
     @State private var loaded = false
     @State private var saveWorkItem: DispatchWorkItem?
+    @State private var template: PageTemplate = .lined
 
     var body: some View {
-        CanvasView(drawing: $drawing, onChange: scheduleSave)
+        CanvasView(drawing: $drawing, template: template, onChange: scheduleSave)
             .ignoresSafeArea(edges: .bottom)
             .navigationTitle(note.title)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Picker("Paper", selection: $template) {
+                            ForEach(PageTemplate.allCases) { t in
+                                Label(t.label, systemImage: t.systemImage).tag(t)
+                            }
+                        }
+                    } label: {
+                        Label("Paper", systemImage: "square.grid.2x2")
+                    }
+                }
+            }
+            .onChange(of: template) { _, newValue in
+                store.setTemplate(newValue, for: note)
+            }
             .onAppear(perform: loadDrawing)
             .onDisappear(perform: saveNow)
     }
 
     private func loadDrawing() {
         guard !loaded else { return }
+        template = note.pageTemplate
         if let data = store.loadDrawingData(for: note),
            let existing = try? PKDrawing(data: data) {
             drawing = existing
