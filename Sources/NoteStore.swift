@@ -36,6 +36,7 @@ final class NoteStore: ObservableObject {
         for index in offsets {
             let note = notes[index]
             try? FileManager.default.removeItem(at: drawingURL(for: note))
+            try? FileManager.default.removeItem(at: stickersURL(for: note))
         }
         notes.remove(atOffsets: offsets)
         saveIndex()
@@ -73,6 +74,28 @@ final class NoteStore: ObservableObject {
             notes[i].modifiedAt = .now
             // keep newest-modified at the top
             notes.sort { $0.modifiedAt > $1.modifiedAt }
+            saveIndex()
+        }
+    }
+
+    // MARK: - Sticker persistence
+
+    private func stickersURL(for note: Note) -> URL {
+        docs.appendingPathComponent("\(note.id.uuidString).stickers.json")
+    }
+
+    func loadStickers(for note: Note) -> [StickerItem] {
+        guard let data = try? Data(contentsOf: stickersURL(for: note)),
+              let items = try? JSONDecoder().decode([StickerItem].self, from: data)
+        else { return [] }
+        return items
+    }
+
+    func saveStickers(_ stickers: [StickerItem], for note: Note) {
+        guard let data = try? JSONEncoder().encode(stickers) else { return }
+        try? data.write(to: stickersURL(for: note), options: .atomic)
+        if let i = notes.firstIndex(where: { $0.id == note.id }) {
+            notes[i].modifiedAt = .now
             saveIndex()
         }
     }

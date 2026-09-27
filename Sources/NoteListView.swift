@@ -87,6 +87,13 @@ struct NoteListView: View {
            let t = PageTemplate(rawValue: tArg) {
             store.setTemplate(t, for: note)
         }
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SEED_STICKERS") {
+            store.saveStickers([
+                StickerItem(symbol: "star.fill", colorHex: "#FFCC00", x: 320, y: 360, size: 150),
+                StickerItem(symbol: "flame.fill", colorHex: "#FF9500", x: 640, y: 300, size: 130, rotation: 0.2),
+                StickerItem(symbol: "heart.fill", colorHex: "#FF3B30", x: 480, y: 580, size: 140, rotation: -0.15),
+            ], for: note)
+        }
         path = [store.notes.first(where: { $0.id == note.id }) ?? note]
     }
 

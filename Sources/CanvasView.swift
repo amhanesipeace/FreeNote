@@ -12,8 +12,12 @@ struct CanvasView: UIViewRepresentable {
     @Binding var drawing: PKDrawing
     /// Paper style drawn behind the ink.
     var template: PageTemplate
+    /// Stickers placed on the page.
+    @Binding var stickers: [StickerItem]
     /// Called whenever the drawing changes, so the editor can auto-save.
     var onChange: (PKDrawing) -> Void
+    /// Called whenever stickers change (move/resize/add/delete), to persist.
+    var onStickersChange: ([StickerItem]) -> Void
 
     /// A generous canvas size — feels large and scrollable on iPad.
     static let canvasSize = CGSize(width: 3000, height: 4000)
@@ -44,6 +48,8 @@ struct CanvasView: UIViewRepresentable {
         canvas.addSubview(paper)
         canvas.sendSubviewToBack(paper)
         context.coordinator.paperView = paper
+        context.coordinator.canvas = canvas
+        context.coordinator.syncStickers(stickers)
 
         // Show Apple's floating tool picker and make the canvas active for it.
         let picker = context.coordinator.toolPicker
@@ -64,18 +70,71 @@ struct CanvasView: UIViewRepresentable {
             paper.backgroundColor = template.patternColor()
             canvas.sendSubviewToBack(paper)
         }
+        context.coordinator.syncStickers(stickers)
     }
 
     final class Coordinator: NSObject, PKCanvasViewDelegate {
         let parent: CanvasView
         let toolPicker = PKToolPicker()
         weak var paperView: UIView?
+        weak var canvas: PKCanvasView?
+        private var stickerViews: [UUID: StickerView] = [:]
 
         init(_ parent: CanvasView) { self.parent = parent }
 
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
             parent.drawing = canvasView.drawing
             parent.onChange(canvasView.drawing)
+        }
+
+        /// Reconcile the sticker subviews with the model array: add new ones,
+        /// update geometry of existing ones, remove deleted ones.
+        func syncStickers(_ items: [StickerItem]) {
+            guard let canvas else { return }
+            let ids = Set(items.map(\.id))
+
+            // Remove stickers no longer in the model.
+            for (id, view) in stickerViews where !ids.contains(id) {
+                view.removeFromSuperview()
+                stickerViews[id] = nil
+            }
+
+            for item in items {
+                if let view = stickerViews[item.id] {
+                    // Update only if not currently being dragged (avoid fighting).
+                    if !view.isInteracting { view.apply(item) }
+                } else {
+                    let view = StickerView(item: item)
+                    view.onChange = { [weak self] v in self?.stickerChanged(v) }
+                    view.onTap = { [weak self] v in self?.stickerTapped(v) }
+                    canvas.addSubview(view)   // on top of the ink
+                    stickerViews[item.id] = view
+                }
+            }
+        }
+
+        private func stickerChanged(_ view: StickerView) {
+            guard let i = parent.stickers.firstIndex(where: { $0.id == view.stickerID })
+            else { return }
+            parent.stickers[i] = view.asItem()
+            parent.onStickersChange(parent.stickers)
+        }
+
+        private func stickerTapped(_ view: StickerView) {
+            // Simple delete affordance: confirm, then remove.
+            guard let vc = view.window?.rootViewController else { return }
+            let sheet = UIAlertController(title: "Sticker", message: nil,
+                                          preferredStyle: .actionSheet)
+            sheet.addAction(UIAlertAction(title: "Delete sticker", style: .destructive) {
+                [weak self] _ in
+                guard let self else { return }
+                self.parent.stickers.removeAll { $0.id == view.stickerID }
+                self.parent.onStickersChange(self.parent.stickers)
+            })
+            sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            sheet.popoverPresentationController?.sourceView = view
+            sheet.popoverPresentationController?.sourceRect = view.bounds
+            vc.present(sheet, animated: true)
         }
     }
 }

@@ -10,14 +10,21 @@ struct NoteEditorView: View {
     @State private var loaded = false
     @State private var saveWorkItem: DispatchWorkItem?
     @State private var template: PageTemplate = .lined
+    @State private var stickers: [StickerItem] = []
+    @State private var showingStickerPicker = false
 
     var body: some View {
-        CanvasView(drawing: $drawing, template: template, onChange: scheduleSave)
+        CanvasView(drawing: $drawing, template: template, stickers: $stickers,
+                   onChange: scheduleSave, onStickersChange: saveStickers)
             .ignoresSafeArea(edges: .bottom)
             .navigationTitle(note.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        showingStickerPicker = true
+                    } label: { Label("Sticker", systemImage: "face.smiling") }
+
                     Menu {
                         Picker("Paper", selection: $template) {
                             ForEach(PageTemplate.allCases) { t in
@@ -29,6 +36,12 @@ struct NoteEditorView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingStickerPicker) {
+                StickerPicker { symbol, colorHex in
+                    addSticker(symbol, colorHex)
+                    showingStickerPicker = false
+                }
+            }
             .onChange(of: template) { _, newValue in
                 store.setTemplate(newValue, for: note)
             }
@@ -36,9 +49,21 @@ struct NoteEditorView: View {
             .onDisappear(perform: saveNow)
     }
 
+    private func addSticker(_ symbol: String, _ colorHex: String) {
+        // Place near the top of the canvas where it's visible on open.
+        let item = StickerItem(symbol: symbol, colorHex: colorHex, x: 500, y: 400)
+        stickers.append(item)
+        saveStickers(stickers)
+    }
+
+    private func saveStickers(_ items: [StickerItem]) {
+        store.saveStickers(items, for: note)
+    }
+
     private func loadDrawing() {
         guard !loaded else { return }
         template = note.pageTemplate
+        stickers = store.loadStickers(for: note)
         if let data = store.loadDrawingData(for: note),
            let existing = try? PKDrawing(data: data) {
             drawing = existing
