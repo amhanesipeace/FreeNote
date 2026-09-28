@@ -27,6 +27,10 @@ struct NoteEditorView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
+                        exportAndShare()
+                    } label: { Label("Share", systemImage: "square.and.arrow.up") }
+
+                    Button {
                         addTextBox()
                     } label: { Label("Text", systemImage: "textformat") }
 
@@ -97,6 +101,35 @@ struct NoteEditorView: View {
         let box = TextBoxItem(text: "Tap to edit", x: 500, y: 420)
         textBoxes.append(box)
         saveTextBoxes(textBoxes)
+    }
+
+    /// Render the note to PDF + PNG and present the iOS share sheet.
+    private func exportAndShare() {
+        saveNow()
+        let title = note.title.isEmpty ? "Note" : note.title
+        let dir = FileManager.default.temporaryDirectory
+        var urls: [URL] = []
+
+        let pdf = NoteRenderer.pdf(template: template, drawing: drawing,
+                                   stickers: stickers, textBoxes: textBoxes)
+        let pdfURL = dir.appendingPathComponent("\(title).pdf")
+        if (try? pdf.write(to: pdfURL)) != nil { urls.append(pdfURL) }
+
+        if let png = NoteRenderer.image(template: template, drawing: drawing,
+                stickers: stickers, textBoxes: textBoxes, outputWidth: 2000).pngData() {
+            let pngURL = dir.appendingPathComponent("\(title).png")
+            if (try? png.write(to: pngURL)) != nil { urls.append(pngURL) }
+        }
+        guard !urls.isEmpty,
+              let root = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene }).first?
+                .keyWindow?.rootViewController else { return }
+
+        let av = UIActivityViewController(activityItems: urls, applicationActivities: nil)
+        av.popoverPresentationController?.sourceView = root.view
+        av.popoverPresentationController?.sourceRect =
+            CGRect(x: root.view.bounds.midX, y: 60, width: 1, height: 1)
+        root.present(av, animated: true)
     }
 
     private func loadDrawing() {

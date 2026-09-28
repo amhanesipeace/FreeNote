@@ -1,4 +1,5 @@
 import SwiftUI
+import PencilKit
 
 /// The home screen: a list of notes with create / open / rename / delete.
 struct NoteListView: View {
@@ -119,6 +120,17 @@ struct NoteListView: View {
                 TextBoxItem(text: "- ship v0.4\n- test text boxes", colorHex: "#1C1C1E",
                             fontSize: 30, x: 380, y: 760, rotation: -0.05),
             ], for: note)
+        }
+        // Render the note to a PNG in Documents so tests can verify the renderer.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_EXPORT") {
+            let n = store.notes.first(where: { $0.id == note.id }) ?? note
+            let drawing = (try? PKDrawing(data: store.loadDrawingData(for: n) ?? Data()))
+                ?? PKDrawing()
+            let png = NoteRenderer.image(template: n.pageTemplate, drawing: drawing,
+                stickers: store.loadStickers(for: n),
+                textBoxes: store.loadTextBoxes(for: n), outputWidth: 1400).pngData()
+            if let png { try? png.write(to: AppPaths.documents
+                .appendingPathComponent("export_preview.png")) }
         }
         path = [store.notes.first(where: { $0.id == note.id }) ?? note]
     }
