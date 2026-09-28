@@ -27,6 +27,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.peaceamhanesi.freenote
         INFOPLIST_KEY_CFBundleDisplayName: FreeNote
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   FreeNoteTests:
     type: bundle.unit-test
