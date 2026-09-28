@@ -118,6 +118,28 @@ final class NoteStoreTests: XCTestCase {
             atPath: tempDir.appendingPathComponent(file).path))
     }
 
+    // MARK: - Folders
+
+    func testSetFolderPersistsAndListsFolders() {
+        let store = makeStore()
+        let a = store.addNote(title: "A")
+        let b = store.addNote(title: "B")
+        store.setFolder("Work", for: a)
+        store.setFolder("Personal", for: b)
+        XCTAssertEqual(store.folders, ["Personal", "Work"])   // sorted
+        let reloaded = NoteStore(directory: tempDir)
+        XCTAssertEqual(Set(reloaded.notes.compactMap(\.folder)), ["Work", "Personal"])
+    }
+
+    func testSetFolderBlankClearsIt() {
+        let store = makeStore()
+        let note = store.addNote()
+        store.setFolder("Temp", for: note)
+        store.setFolder("   ", for: note)                     // whitespace clears
+        XCTAssertNil(store.notes.first?.folder)
+        XCTAssertTrue(store.folders.isEmpty)
+    }
+
     // MARK: - Text boxes
 
     func testTextBoxesRoundTrip() {

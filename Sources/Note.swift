@@ -13,15 +13,18 @@ struct Note: Identifiable, Codable, Equatable, Hashable {
     /// Paper style. Optional so notes saved before templates existed still
     /// decode; `nil` is treated as `.lined` in the UI.
     var template: PageTemplate?
+    /// Optional folder name (nil = not filed).
+    var folder: String?
 
     init(id: UUID = UUID(), title: String = "Untitled",
          createdAt: Date = .now, modifiedAt: Date = .now,
-         template: PageTemplate? = .lined) {
+         template: PageTemplate? = .lined, folder: String? = nil) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
         self.template = template
+        self.folder = folder
     }
 
     /// The effective paper style (defaults to lined).

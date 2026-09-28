@@ -6,7 +6,21 @@ struct NoteListView: View {
     @EnvironmentObject var store: NoteStore
     @State private var renaming: Note?
     @State private var renameText = ""
+    @State private var filing: Note?
+    @State private var folderText = ""
+    @State private var searchText = ""
+    @State private var selectedFolder: String?      // nil = All
     @State private var path: [Note] = []
+
+    /// Notes after applying the folder filter and title search.
+    private var filteredNotes: [Note] {
+        store.notes.filter { note in
+            let folderOK = selectedFolder == nil || note.folder == selectedFolder
+            let searchOK = searchText.isEmpty ||
+                note.title.localizedCaseInsensitiveContains(searchText)
+            return folderOK && searchOK
+        }
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -17,8 +31,12 @@ struct NoteListView: View {
                     list
                 }
             }
-            .navigationTitle("FreeNote")
+            .navigationTitle(selectedFolder ?? "FreeNote")
+            .searchable(text: $searchText, prompt: "Search notes")
             .toolbar {
+                if !store.folders.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) { folderMenu }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: newNote) {
                         Label("New Note", systemImage: "square.and.pencil")
@@ -34,19 +52,46 @@ struct NoteListView: View {
                     renaming = nil
                 }
             }
+            .alert("Move to folder", isPresented: filingBinding) {
+                TextField("Folder name (blank = none)", text: $folderText)
+                Button("Cancel", role: .cancel) { filing = nil }
+                Button("Save") {
+                    if let note = filing { store.setFolder(folderText, for: note) }
+                    filing = nil
+                }
+            }
+        }
+    }
+
+    private var folderMenu: some View {
+        Menu {
+            Picker("Folder", selection: $selectedFolder) {
+                Label("All Notes", systemImage: "tray.full").tag(String?.none)
+                ForEach(store.folders, id: \.self) { folder in
+                    Label(folder, systemImage: "folder").tag(String?.some(folder))
+                }
+            }
+        } label: {
+            Label("Folders", systemImage: "folder")
         }
     }
 
     private var list: some View {
         List {
-            ForEach(store.notes) { note in
+            ForEach(filteredNotes) { note in
                 NavigationLink(value: note) {
                     HStack(spacing: 12) {
                         NoteThumbnail(note: note)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(note.title).font(.headline)
-                            Text(note.modifiedAt, format: .dateTime.month().day().hour().minute())
-                                .font(.caption).foregroundStyle(.secondary)
+                            HStack(spacing: 6) {
+                                if let folder = note.folder {
+                                    Label(folder, systemImage: "folder")
+                                        .font(.caption2).foregroundStyle(.tint)
+                                }
+                                Text(note.modifiedAt, format: .dateTime.month().day().hour().minute())
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -56,13 +101,31 @@ struct NoteListView: View {
                         renameText = note.title
                     } label: { Label("Rename", systemImage: "pencil") }
                     .tint(.blue)
+                    Button {
+                        filing = note
+                        folderText = note.folder ?? ""
+                    } label: { Label("Folder", systemImage: "folder") }
+                    .tint(.orange)
                 }
             }
-            .onDelete(perform: store.deleteNotes)
+            .onDelete(perform: deleteFiltered)
+        }
+        .overlay {
+            if filteredNotes.isEmpty {
+                ContentUnavailableView.search
+            }
         }
         .navigationDestination(for: Note.self) { note in
             NoteEditorView(note: note)
         }
+    }
+
+    /// Map deletions from the filtered list back to the store's indices.
+    private func deleteFiltered(at offsets: IndexSet) {
+        let ids = offsets.map { filteredNotes[$0].id }
+        let storeIndices = IndexSet(store.notes.indices.filter {
+            ids.contains(store.notes[$0].id) })
+        store.deleteNotes(at: storeIndices)
     }
 
     private var emptyState: some View {
@@ -76,12 +139,28 @@ struct NoteListView: View {
     }
 
     private func newNote() {
-        store.addNote()
+        // New notes inherit the currently-selected folder.
+        let note = store.addNote()
+        if let folder = selectedFolder { store.setFolder(folder, for: note) }
+    }
+
+    private var filingBinding: Binding<Bool> {
+        Binding(get: { filing != nil }, set: { if !$0 { filing = nil } })
     }
 
     /// Test hook: `-UITEST_OPEN_CANVAS` opens straight into a note so the canvas
     /// can be captured in an automated screenshot. No effect in normal use.
     private func handleUITestLaunch() {
+        // Seed a few foldered notes and stay on the list (for folder/search shots).
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SEED_LIST"),
+           store.notes.isEmpty {
+            let specs = [("Math lecture", "School"), ("Grocery list", "Personal"),
+                         ("Sprint planning", "Work"), ("Book ideas", "Personal")]
+            for (title, folder) in specs {
+                store.setFolder(folder, for: store.addNote(title: title))
+            }
+        }
+
         guard ProcessInfo.processInfo.arguments.contains("UITEST_OPEN_CANVAS"),
               path.isEmpty else { return }
         let note = store.notes.first ?? store.addNote(title: "Sample")

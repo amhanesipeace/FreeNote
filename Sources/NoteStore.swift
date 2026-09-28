@@ -68,6 +68,18 @@ final class NoteStore: ObservableObject {
         saveIndex()
     }
 
+    func setFolder(_ folder: String?, for note: Note) {
+        guard let i = notes.firstIndex(where: { $0.id == note.id }) else { return }
+        let trimmed = folder?.trimmingCharacters(in: .whitespaces)
+        notes[i].folder = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        saveIndex()
+    }
+
+    /// Distinct folder names currently in use, sorted.
+    var folders: [String] {
+        Set(notes.compactMap(\.folder)).sorted()
+    }
+
     // MARK: - Drawing persistence
 
     func drawingURL(for note: Note) -> URL {

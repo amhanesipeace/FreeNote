@@ -70,7 +70,7 @@ CanvasView.swift     UIViewRepresentable wrapping PKCanvasView + PKToolPicker
 5. ✅ Text boxes — typed text alongside handwriting
 6. ✅ Page **templates** — blank, lined, grid, dotted
 7. **PDF import** (annotate PDFs) and **export** (share notes as PDF/PNG)
-8. Folders / notebooks organisation; search
+8. ✅ Folders & search
 
 ## License
 
