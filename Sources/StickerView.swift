@@ -10,6 +10,8 @@ final class StickerView: UIImageView {
     let stickerID: UUID
     private let symbol: String
     private let colorHex: String
+    private let imageFile: String?
+    private var aspect: CGFloat
 
     /// Called (with the updated geometry) whenever the user finishes a gesture.
     var onChange: ((StickerView) -> Void)?
@@ -20,14 +22,23 @@ final class StickerView: UIImageView {
         self.stickerID = item.id
         self.symbol = item.symbol
         self.colorHex = item.colorHex
+        self.imageFile = item.imageFile
+        self.aspect = item.aspect
         super.init(frame: .zero)
 
-        image = UIImage(systemName: item.symbol)?.withRenderingMode(.alwaysTemplate)
-        tintColor = UIColor(hex: item.colorHex)
-        contentMode = .scaleAspectFit
+        if let file = item.imageFile,
+           let img = UIImage(contentsOfFile: AppPaths.documents
+               .appendingPathComponent(file).path) {
+            image = img                       // photo sticker: full colour
+            contentMode = .scaleAspectFit
+        } else {
+            image = UIImage(systemName: item.symbol)?.withRenderingMode(.alwaysTemplate)
+            tintColor = UIColor(hex: item.colorHex)
+            contentMode = .scaleAspectFit
+        }
         isUserInteractionEnabled = true
 
-        bounds = CGRect(x: 0, y: 0, width: item.size, height: item.size)
+        bounds = CGRect(x: 0, y: 0, width: item.size, height: item.size * item.aspect)
         center = CGPoint(x: item.x, y: item.y)
         transform = CGAffineTransform(rotationAngle: item.rotation)
 
@@ -42,13 +53,15 @@ final class StickerView: UIImageView {
     /// Current geometry as a model item.
     func asItem() -> StickerItem {
         StickerItem(id: stickerID, symbol: symbol, colorHex: colorHex,
+                    imageFile: imageFile, aspect: aspect,
                     x: center.x, y: center.y,
                     size: bounds.width, rotation: currentRotation())
     }
 
     /// Update geometry from a model item (used when syncing externally).
     func apply(_ item: StickerItem) {
-        bounds = CGRect(x: 0, y: 0, width: item.size, height: item.size)
+        aspect = item.aspect
+        bounds = CGRect(x: 0, y: 0, width: item.size, height: item.size * item.aspect)
         center = CGPoint(x: item.x, y: item.y)
         transform = CGAffineTransform(rotationAngle: item.rotation)
     }
@@ -71,8 +84,8 @@ final class StickerView: UIImageView {
 
     @objc private func pinch(_ g: UIPinchGestureRecognizer) {
         if g.state == .changed {
-            let newWidth = max(48, min(600, bounds.width * g.scale))
-            bounds = CGRect(x: 0, y: 0, width: newWidth, height: newWidth)
+            let newWidth = max(48, min(800, bounds.width * g.scale))
+            bounds = CGRect(x: 0, y: 0, width: newWidth, height: newWidth * aspect)
             g.scale = 1
         } else if g.state == .ended {
             onChange?(self)

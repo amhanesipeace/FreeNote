@@ -88,11 +88,31 @@ struct NoteListView: View {
             store.setTemplate(t, for: note)
         }
         if ProcessInfo.processInfo.arguments.contains("UITEST_SEED_STICKERS") {
-            store.saveStickers([
+            var items = [
                 StickerItem(symbol: "star.fill", colorHex: "#FFCC00", x: 320, y: 360, size: 150),
                 StickerItem(symbol: "flame.fill", colorHex: "#FF9500", x: 640, y: 300, size: 130, rotation: 0.2),
                 StickerItem(symbol: "heart.fill", colorHex: "#FF3B30", x: 480, y: 580, size: 140, rotation: -0.15),
-            ], for: note)
+            ]
+            // Generate a sample "photo" (portrait aspect) to exercise the image path.
+            let sz = CGSize(width: 300, height: 450)
+            let img = UIGraphicsImageRenderer(size: sz).image { ctx in
+                let cg = ctx.cgContext
+                let colors = [UIColor.systemTeal.cgColor, UIColor.systemIndigo.cgColor]
+                let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                      colors: colors as CFArray, locations: [0, 1])!
+                cg.drawLinearGradient(grad, start: .zero,
+                                      end: CGPoint(x: sz.width, y: sz.height), options: [])
+                UIColor.white.setFill()
+                "🖼".draw(at: CGPoint(x: 110, y: 180),
+                          withAttributes: [.font: UIFont.systemFont(ofSize: 80)])
+            }
+            if let data = img.pngData() {
+                let id = UUID()
+                let file = store.saveStickerImage(data, id: id)
+                items.append(StickerItem(id: id, imageFile: file, aspect: 1.5,
+                                         x: 900, y: 520, size: 240, rotation: 0.1))
+            }
+            store.saveStickers(items, for: note)
         }
         path = [store.notes.first(where: { $0.id == note.id }) ?? note]
     }

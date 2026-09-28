@@ -1,5 +1,6 @@
 import SwiftUI
 import PencilKit
+import PhotosUI
 
 /// The writing surface for one note: hosts the markup canvas and auto-saves.
 struct NoteEditorView: View {
@@ -12,6 +13,7 @@ struct NoteEditorView: View {
     @State private var template: PageTemplate = .lined
     @State private var stickers: [StickerItem] = []
     @State private var showingStickerPicker = false
+    @State private var photoItem: PhotosPickerItem?
 
     var body: some View {
         CanvasView(drawing: $drawing, template: template, stickers: $stickers,
@@ -21,6 +23,10 @@ struct NoteEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label("Photo", systemImage: "photo")
+                    }
+
                     Button {
                         showingStickerPicker = true
                     } label: { Label("Sticker", systemImage: "face.smiling") }
@@ -45,8 +51,24 @@ struct NoteEditorView: View {
             .onChange(of: template) { _, newValue in
                 store.setTemplate(newValue, for: note)
             }
+            .onChange(of: photoItem) { _, newItem in
+                guard let newItem else { return }
+                Task { await importPhoto(newItem); photoItem = nil }
+            }
             .onAppear(perform: loadDrawing)
             .onDisappear(perform: saveNow)
+    }
+
+    private func importPhoto(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else { return }
+        let aspect = image.size.width > 0 ? image.size.height / image.size.width : 1
+        let id = UUID()
+        let file = store.saveStickerImage(data, id: id)
+        let sticker = StickerItem(id: id, imageFile: file, aspect: aspect,
+                                  x: 500, y: 500, size: 260)
+        stickers.append(sticker)
+        saveStickers(stickers)
     }
 
     private func addSticker(_ symbol: String, _ colorHex: String) {

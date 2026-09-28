@@ -35,6 +35,13 @@ final class NoteStore: ObservableObject {
     func deleteNotes(at offsets: IndexSet) {
         for index in offsets {
             let note = notes[index]
+            // Remove any imported photo files this note's stickers referenced.
+            for sticker in loadStickers(for: note) {
+                if let file = sticker.imageFile {
+                    try? FileManager.default.removeItem(
+                        at: docs.appendingPathComponent(file))
+                }
+            }
             try? FileManager.default.removeItem(at: drawingURL(for: note))
             try? FileManager.default.removeItem(at: stickersURL(for: note))
         }
@@ -98,6 +105,14 @@ final class NoteStore: ObservableObject {
             notes[i].modifiedAt = .now
             saveIndex()
         }
+    }
+
+    /// Save an imported photo's bytes and return the filename to store on the
+    /// sticker. Files live in Documents alongside everything else.
+    func saveStickerImage(_ data: Data, id: UUID = UUID()) -> String {
+        let filename = "sticker_\(id.uuidString).png"
+        try? data.write(to: docs.appendingPathComponent(filename), options: .atomic)
+        return filename
     }
 
     // MARK: - Index persistence

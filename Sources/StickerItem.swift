@@ -11,22 +11,40 @@ import UIKit
 /// canvas coordinates so it scrolls with the page.
 struct StickerItem: Identifiable, Codable, Equatable {
     let id: UUID
-    var symbol: String         // SF Symbol name
+    var symbol: String         // SF Symbol name (for symbol stickers)
     var colorHex: String       // tint colour, e.g. "#FF3B30"
+    /// Filename (in Documents) of an imported photo. When set, this is a photo
+    /// sticker and `symbol`/`colorHex` are ignored.
+    var imageFile: String?
+    /// height / width ratio (1 for square symbol stickers; photos keep aspect).
+    var aspect: CGFloat
     var x: CGFloat             // centre X in canvas coordinates
     var y: CGFloat             // centre Y in canvas coordinates
-    var size: CGFloat          // width == height, in points
+    var size: CGFloat          // width in points (height = width * aspect)
     var rotation: CGFloat      // radians
 
-    init(id: UUID = UUID(), symbol: String, colorHex: String = "#FF9500",
+    init(id: UUID = UUID(), symbol: String = "", colorHex: String = "#FF9500",
+         imageFile: String? = nil, aspect: CGFloat = 1,
          x: CGFloat, y: CGFloat, size: CGFloat = 110, rotation: CGFloat = 0) {
         self.id = id
         self.symbol = symbol
         self.colorHex = colorHex
+        self.imageFile = imageFile
+        self.aspect = aspect
         self.x = x
         self.y = y
         self.size = size
         self.rotation = rotation
+    }
+
+    var isPhoto: Bool { imageFile != nil }
+}
+
+/// The app's Documents directory (single place notes, drawings, sticker images
+/// and imported photos all live).
+enum AppPaths {
+    static var documents: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 }
 
