@@ -41,10 +41,13 @@ struct NoteListView: View {
         List {
             ForEach(store.notes) { note in
                 NavigationLink(value: note) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(note.title).font(.headline)
-                        Text(note.modifiedAt, format: .dateTime.month().day().hour().minute())
-                            .font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        NoteThumbnail(note: note)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(note.title).font(.headline)
+                            Text(note.modifiedAt, format: .dateTime.month().day().hour().minute())
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .swipeActions(edge: .leading) {
