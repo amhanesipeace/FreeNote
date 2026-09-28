@@ -48,6 +48,7 @@ final class NoteStore: ObservableObject {
             }
             try? FileManager.default.removeItem(at: drawingURL(for: note))
             try? FileManager.default.removeItem(at: stickersURL(for: note))
+            try? FileManager.default.removeItem(at: textBoxesURL(for: note))
         }
         notes.remove(atOffsets: offsets)
         saveIndex()
@@ -117,6 +118,28 @@ final class NoteStore: ObservableObject {
         let filename = "sticker_\(id.uuidString).png"
         try? data.write(to: docs.appendingPathComponent(filename), options: .atomic)
         return filename
+    }
+
+    // MARK: - Text-box persistence
+
+    private func textBoxesURL(for note: Note) -> URL {
+        docs.appendingPathComponent("\(note.id.uuidString).textboxes.json")
+    }
+
+    func loadTextBoxes(for note: Note) -> [TextBoxItem] {
+        guard let data = try? Data(contentsOf: textBoxesURL(for: note)),
+              let items = try? JSONDecoder().decode([TextBoxItem].self, from: data)
+        else { return [] }
+        return items
+    }
+
+    func saveTextBoxes(_ boxes: [TextBoxItem], for note: Note) {
+        guard let data = try? JSONEncoder().encode(boxes) else { return }
+        try? data.write(to: textBoxesURL(for: note), options: .atomic)
+        if let i = notes.firstIndex(where: { $0.id == note.id }) {
+            notes[i].modifiedAt = .now
+            saveIndex()
+        }
     }
 
     // MARK: - Index persistence

@@ -118,6 +118,25 @@ final class NoteStoreTests: XCTestCase {
             atPath: tempDir.appendingPathComponent(file).path))
     }
 
+    // MARK: - Text boxes
+
+    func testTextBoxesRoundTrip() {
+        let store = makeStore()
+        let note = store.addNote()
+        let boxes = [
+            TextBoxItem(text: "Hello", x: 10, y: 20),
+            TextBoxItem(text: "World", colorHex: "#FF0000", fontSize: 50, x: 30, y: 40),
+        ]
+        store.saveTextBoxes(boxes, for: note)
+        XCTAssertEqual(store.loadTextBoxes(for: note), boxes)
+    }
+
+    func testTextBoxesEmptyByDefault() {
+        let store = makeStore()
+        let note = store.addNote()
+        XCTAssertTrue(store.loadTextBoxes(for: note).isEmpty)
+    }
+
     func testDeleteNoteRemovesStickerPhotoFiles() {
         let store = makeStore()
         let note = store.addNote()

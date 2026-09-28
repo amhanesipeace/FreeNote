@@ -113,6 +113,12 @@ struct NoteListView: View {
                                          x: 900, y: 520, size: 240, rotation: 0.1))
             }
             store.saveStickers(items, for: note)
+            store.saveTextBoxes([
+                TextBoxItem(text: "Meeting notes ✏️", colorHex: "#5856D6",
+                            fontSize: 44, x: 430, y: 200),
+                TextBoxItem(text: "- ship v0.4\n- test text boxes", colorHex: "#1C1C1E",
+                            fontSize: 30, x: 380, y: 760, rotation: -0.05),
+            ], for: note)
         }
         path = [store.notes.first(where: { $0.id == note.id }) ?? note]
     }

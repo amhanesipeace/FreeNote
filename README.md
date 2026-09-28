@@ -65,10 +65,10 @@ CanvasView.swift     UIViewRepresentable wrapping PKCanvasView + PKToolPicker
 
 1. ✅ v0.1 — markup notebook (PencilKit) + local persistence
 2. True **infinite canvas** (unbounded, tiled) instead of a fixed large size
-3. **Images & photos** on the canvas (import, move, resize)
-4. **Custom stickers** — user-added sticker library, drag onto pages
-5. Text boxes / typed notes alongside handwriting
-6. Page **templates** — lined, grid, dotted, Cornell
+3. ✅ **Images & photos** on the canvas (import, move, resize)
+4. ✅ **Custom stickers** — colourful SF-Symbol stickers, drag/resize/rotate
+5. ✅ Text boxes — typed text alongside handwriting
+6. ✅ Page **templates** — blank, lined, grid, dotted
 7. **PDF import** (annotate PDFs) and **export** (share notes as PDF/PNG)
 8. Folders / notebooks organisation; search
 

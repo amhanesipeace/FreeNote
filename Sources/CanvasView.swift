@@ -14,10 +14,14 @@ struct CanvasView: UIViewRepresentable {
     var template: PageTemplate
     /// Stickers placed on the page.
     @Binding var stickers: [StickerItem]
+    /// Text boxes placed on the page.
+    @Binding var textBoxes: [TextBoxItem]
     /// Called whenever the drawing changes, so the editor can auto-save.
     var onChange: (PKDrawing) -> Void
     /// Called whenever stickers change (move/resize/add/delete), to persist.
     var onStickersChange: ([StickerItem]) -> Void
+    /// Called whenever text boxes change, to persist.
+    var onTextBoxesChange: ([TextBoxItem]) -> Void
 
     /// A generous canvas size — feels large and scrollable on iPad.
     static let canvasSize = CGSize(width: 3000, height: 4000)
@@ -50,6 +54,7 @@ struct CanvasView: UIViewRepresentable {
         context.coordinator.paperView = paper
         context.coordinator.canvas = canvas
         context.coordinator.syncStickers(stickers)
+        context.coordinator.syncTextBoxes(textBoxes)
 
         // Show Apple's floating tool picker and make the canvas active for it.
         let picker = context.coordinator.toolPicker
@@ -71,6 +76,7 @@ struct CanvasView: UIViewRepresentable {
             canvas.sendSubviewToBack(paper)
         }
         context.coordinator.syncStickers(stickers)
+        context.coordinator.syncTextBoxes(textBoxes)
     }
 
     final class Coordinator: NSObject, PKCanvasViewDelegate {
@@ -79,6 +85,7 @@ struct CanvasView: UIViewRepresentable {
         weak var paperView: UIView?
         weak var canvas: PKCanvasView?
         private var stickerViews: [UUID: StickerView] = [:]
+        private var textBoxViews: [UUID: TextBoxView] = [:]
 
         init(_ parent: CanvasView) { self.parent = parent }
 
@@ -118,6 +125,33 @@ struct CanvasView: UIViewRepresentable {
             else { return }
             parent.stickers[i] = view.asItem()
             parent.onStickersChange(parent.stickers)
+        }
+
+        /// Reconcile text-box subviews with the model array.
+        func syncTextBoxes(_ items: [TextBoxItem]) {
+            guard let canvas else { return }
+            let ids = Set(items.map(\.id))
+            for (id, view) in textBoxViews where !ids.contains(id) {
+                view.removeFromSuperview()
+                textBoxViews[id] = nil
+            }
+            for item in items {
+                if let view = textBoxViews[item.id] {
+                    if !view.isInteracting { view.apply(item) }
+                } else {
+                    let view = TextBoxView(item: item)
+                    view.onChange = { [weak self] v in self?.textBoxChanged(v) }
+                    canvas.addSubview(view)
+                    textBoxViews[item.id] = view
+                }
+            }
+        }
+
+        private func textBoxChanged(_ view: TextBoxView) {
+            guard let i = parent.textBoxes.firstIndex(where: { $0.id == view.boxID })
+            else { return }
+            parent.textBoxes[i] = view.asItem()
+            parent.onTextBoxesChange(parent.textBoxes)
         }
 
         private func stickerTapped(_ view: StickerView) {

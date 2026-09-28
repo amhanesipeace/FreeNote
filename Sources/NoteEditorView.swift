@@ -12,17 +12,24 @@ struct NoteEditorView: View {
     @State private var saveWorkItem: DispatchWorkItem?
     @State private var template: PageTemplate = .lined
     @State private var stickers: [StickerItem] = []
+    @State private var textBoxes: [TextBoxItem] = []
     @State private var showingStickerPicker = false
     @State private var photoItem: PhotosPickerItem?
 
     var body: some View {
-        CanvasView(drawing: $drawing, template: template, stickers: $stickers,
-                   onChange: scheduleSave, onStickersChange: saveStickers)
+        CanvasView(drawing: $drawing, template: template,
+                   stickers: $stickers, textBoxes: $textBoxes,
+                   onChange: scheduleSave, onStickersChange: saveStickers,
+                   onTextBoxesChange: saveTextBoxes)
             .ignoresSafeArea(edges: .bottom)
             .navigationTitle(note.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        addTextBox()
+                    } label: { Label("Text", systemImage: "textformat") }
+
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         Label("Photo", systemImage: "photo")
                     }
@@ -82,10 +89,21 @@ struct NoteEditorView: View {
         store.saveStickers(items, for: note)
     }
 
+    private func saveTextBoxes(_ items: [TextBoxItem]) {
+        store.saveTextBoxes(items, for: note)
+    }
+
+    private func addTextBox() {
+        let box = TextBoxItem(text: "Tap to edit", x: 500, y: 420)
+        textBoxes.append(box)
+        saveTextBoxes(textBoxes)
+    }
+
     private func loadDrawing() {
         guard !loaded else { return }
         template = note.pageTemplate
         stickers = store.loadStickers(for: note)
+        textBoxes = store.loadTextBoxes(for: note)
         if let data = store.loadDrawingData(for: note),
            let existing = try? PKDrawing(data: data) {
             drawing = existing
