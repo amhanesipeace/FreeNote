@@ -27,3 +27,25 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.peaceamhanesi.freenote
         INFOPLIST_KEY_CFBundleDisplayName: FreeNote
+
+  FreeNoteTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - FreeNoteTests
+    dependencies:
+      - target: FreeNote
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.peaceamhanesi.freenote.tests
+
+schemes:
+  FreeNote:
+    build:
+      targets:
+        FreeNote: all
+        FreeNoteTests: [test]
+    test:
+      targets:
+        - FreeNoteTests
+      gatherCoverageData: true

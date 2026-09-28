@@ -7,6 +7,9 @@ xcuserdata/
 # The .xcodeproj is generated from project.yml by XcodeGen, so we don't commit it.
 FreeNote.xcodeproj/
 
+# Test results
+*.xcresult
+
 # macOS
 .DS_Store
 

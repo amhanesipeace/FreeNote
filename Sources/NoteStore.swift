@@ -14,9 +14,13 @@ final class NoteStore: ObservableObject {
     private let indexURL: URL
     private let docs: URL
 
-    init() {
-        docs = FileManager.default.urls(for: .documentDirectory,
-                                        in: .userDomainMask)[0]
+    /// `directory` defaults to the app's Documents folder; tests inject a temp
+    /// directory so they never touch real data.
+    init(directory: URL? = nil) {
+        docs = directory ?? FileManager.default.urls(for: .documentDirectory,
+                                                     in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: docs,
+            withIntermediateDirectories: true)
         indexURL = docs.appendingPathComponent("notes_index.json")
         load()
     }

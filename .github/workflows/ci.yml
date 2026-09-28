@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Run unit tests
+        run: |
+          # Pick any available iPhone simulator on the runner (robust to image changes).
+          UDID=$(xcrun simctl list devices available \
+                 | grep -m1 "iPhone" \
+                 | grep -oE "[0-9A-F-]{36}")
+          echo "Using simulator: $UDID"
+          xcodebuild test \
+            -project FreeNote.xcodeproj \
+            -scheme FreeNote \
+            -destination "id=$UDID" \
+            CODE_SIGNING_ALLOWED=NO

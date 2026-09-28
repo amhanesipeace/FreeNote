@@ -1,5 +1,7 @@
 # FreeNote 📝
 
+[![CI](https://github.com/amhanesipeace/FreeNote/actions/workflows/ci.yml/badge.svg)](https://github.com/amhanesipeace/FreeNote/actions/workflows/ci.yml)
+
 A **100% free** digital notebook for iPad & iPhone — no subscriptions, no
 paywalls, no ads, no accounts, no cloud. Your notes live only on your device.
 
@@ -36,6 +38,17 @@ open FreeNote.xcodeproj       # then press ⌘R to run
 In Xcode, pick an **iPad simulator** (or your own iPad) and Run. To run on your
 own device for free, select it, set your Apple ID as the signing team, and
 Xcode installs a 7-day build — no paid account needed.
+
+## Testing
+
+The persistence layer (`NoteStore`) is unit-tested with XCTest — notes CRUD,
+drawing/template/sticker round-trips, and file cleanup on delete. Tests inject a
+temp directory so they never touch real data. CI runs them on every push.
+
+```bash
+xcodegen generate
+xcodebuild test -scheme FreeNote -destination 'platform=iOS Simulator,name=iPad (A16)'
+```
 
 ## Architecture
 
