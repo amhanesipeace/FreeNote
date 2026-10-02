@@ -39,16 +39,18 @@ final class NoteStore: ObservableObject {
     func deleteNotes(at offsets: IndexSet) {
         for index in offsets {
             let note = notes[index]
-            // Remove any imported photo files this note's stickers referenced.
-            for sticker in loadStickers(for: note) {
-                if let file = sticker.imageFile {
-                    try? FileManager.default.removeItem(
-                        at: docs.appendingPathComponent(file))
+            for page in 0..<note.pages {
+                // Remove any imported photo files this page's stickers referenced.
+                for sticker in loadStickers(for: note, page: page) {
+                    if let file = sticker.imageFile {
+                        try? FileManager.default.removeItem(
+                            at: docs.appendingPathComponent(file))
+                    }
                 }
+                try? FileManager.default.removeItem(at: drawingURL(for: note, page: page))
+                try? FileManager.default.removeItem(at: stickersURL(for: note, page: page))
+                try? FileManager.default.removeItem(at: textBoxesURL(for: note, page: page))
             }
-            try? FileManager.default.removeItem(at: drawingURL(for: note))
-            try? FileManager.default.removeItem(at: stickersURL(for: note))
-            try? FileManager.default.removeItem(at: textBoxesURL(for: note))
         }
         notes.remove(atOffsets: offsets)
         saveIndex()
@@ -80,44 +82,56 @@ final class NoteStore: ObservableObject {
         Set(notes.compactMap(\.folder)).sorted()
     }
 
-    // MARK: - Drawing persistence
+    // MARK: - Pages
 
-    func drawingURL(for note: Note) -> URL {
-        docs.appendingPathComponent(note.drawingFileName)
+    /// Append a blank page to a note and return the new page count.
+    @discardableResult
+    func addPage(to note: Note) -> Int {
+        guard let i = notes.firstIndex(where: { $0.id == note.id }) else { return 1 }
+        notes[i].pageCount = notes[i].pages + 1
+        notes[i].modifiedAt = .now
+        saveIndex()
+        return notes[i].pages
     }
 
-    /// Load a note's drawing bytes (nil if it has none yet).
-    func loadDrawingData(for note: Note) -> Data? {
-        try? Data(contentsOf: drawingURL(for: note))
+    // MARK: - Drawing persistence (per page)
+
+    func drawingURL(for note: Note, page: Int = 0) -> URL {
+        docs.appendingPathComponent(note.drawingFileName(page: page))
     }
 
-    /// Save drawing bytes for a note and bump its modified date.
-    func saveDrawingData(_ data: Data, for note: Note) {
-        try? data.write(to: drawingURL(for: note), options: .atomic)
+    /// Load a page's drawing bytes (nil if it has none yet).
+    func loadDrawingData(for note: Note, page: Int = 0) -> Data? {
+        try? Data(contentsOf: drawingURL(for: note, page: page))
+    }
+
+    /// Save a page's drawing bytes and bump the note's modified date.
+    func saveDrawingData(_ data: Data, for note: Note, page: Int = 0) {
+        try? data.write(to: drawingURL(for: note, page: page), options: .atomic)
         if let i = notes.firstIndex(where: { $0.id == note.id }) {
             notes[i].modifiedAt = .now
-            // keep newest-modified at the top
-            notes.sort { $0.modifiedAt > $1.modifiedAt }
+            notes.sort { $0.modifiedAt > $1.modifiedAt }   // newest-modified first
             saveIndex()
         }
     }
 
-    // MARK: - Sticker persistence
+    // MARK: - Sticker persistence (per page)
 
-    private func stickersURL(for note: Note) -> URL {
-        docs.appendingPathComponent("\(note.id.uuidString).stickers.json")
+    private func stickersURL(for note: Note, page: Int = 0) -> URL {
+        docs.appendingPathComponent(
+            "\(note.id.uuidString)\(note.pageSuffix(page)).stickers.json")
     }
 
-    func loadStickers(for note: Note) -> [StickerItem] {
-        guard let data = try? Data(contentsOf: stickersURL(for: note)),
+    func loadStickers(for note: Note, page: Int = 0) -> [StickerItem] {
+        guard let data = try? Data(contentsOf: stickersURL(for: note, page: page)),
               let items = try? JSONDecoder().decode([StickerItem].self, from: data)
         else { return [] }
         return items
     }
 
-    func saveStickers(_ stickers: [StickerItem], for note: Note) {
+    func saveStickers(_ stickers: [StickerItem], for note: Note, page: Int = 0) {
         guard let data = try? JSONEncoder().encode(stickers) else { return }
-        try? data.write(to: stickersURL(for: note), options: .atomic)
+        try? data.write(to: stickersURL(for: note, page: page), options: .atomic)
         if let i = notes.firstIndex(where: { $0.id == note.id }) {
             notes[i].modifiedAt = .now
             saveIndex()
@@ -134,20 +148,21 @@ final class NoteStore: ObservableObject {
 
     // MARK: - Text-box persistence
 
-    private func textBoxesURL(for note: Note) -> URL {
-        docs.appendingPathComponent("\(note.id.uuidString).textboxes.json")
+    private func textBoxesURL(for note: Note, page: Int = 0) -> URL {
+        docs.appendingPathComponent(
+            "\(note.id.uuidString)\(note.pageSuffix(page)).textboxes.json")
     }
 
-    func loadTextBoxes(for note: Note) -> [TextBoxItem] {
-        guard let data = try? Data(contentsOf: textBoxesURL(for: note)),
+    func loadTextBoxes(for note: Note, page: Int = 0) -> [TextBoxItem] {
+        guard let data = try? Data(contentsOf: textBoxesURL(for: note, page: page)),
               let items = try? JSONDecoder().decode([TextBoxItem].self, from: data)
         else { return [] }
         return items
     }
 
-    func saveTextBoxes(_ boxes: [TextBoxItem], for note: Note) {
+    func saveTextBoxes(_ boxes: [TextBoxItem], for note: Note, page: Int = 0) {
         guard let data = try? JSONEncoder().encode(boxes) else { return }
-        try? data.write(to: textBoxesURL(for: note), options: .atomic)
+        try? data.write(to: textBoxesURL(for: note, page: page), options: .atomic)
         if let i = notes.firstIndex(where: { $0.id == note.id }) {
             notes[i].modifiedAt = .now
             saveIndex()

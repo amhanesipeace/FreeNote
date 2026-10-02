@@ -118,6 +118,47 @@ final class NoteStoreTests: XCTestCase {
             atPath: tempDir.appendingPathComponent(file).path))
     }
 
+    // MARK: - Pages
+
+    func testNewNoteHasOnePage() {
+        let store = makeStore()
+        XCTAssertEqual(store.addNote().pages, 1)
+    }
+
+    func testAddPageIncrementsCountAndPersists() {
+        let store = makeStore()
+        let note = store.addNote()
+        XCTAssertEqual(store.addPage(to: note), 2)
+        XCTAssertEqual(store.addPage(to: note), 3)
+        XCTAssertEqual(NoteStore(directory: tempDir).notes.first?.pages, 3)
+    }
+
+    func testPerPageContentIsIsolated() {
+        let store = makeStore()
+        let note = store.addNote()
+        store.addPage(to: note)                       // now 2 pages
+        store.saveDrawingData(Data([1]), for: note, page: 0)
+        store.saveDrawingData(Data([2]), for: note, page: 1)
+        store.saveStickers([StickerItem(symbol: "star.fill", x: 1, y: 1)],
+                           for: note, page: 1)
+
+        XCTAssertEqual(store.loadDrawingData(for: note, page: 0), Data([1]))
+        XCTAssertEqual(store.loadDrawingData(for: note, page: 1), Data([2]))
+        XCTAssertTrue(store.loadStickers(for: note, page: 0).isEmpty)
+        XCTAssertEqual(store.loadStickers(for: note, page: 1).count, 1)
+    }
+
+    func testDeleteRemovesAllPages() {
+        let store = makeStore()
+        let note = store.addNote()
+        store.addPage(to: note)
+        store.saveDrawingData(Data([1]), for: note, page: 0)
+        store.saveDrawingData(Data([2]), for: note, page: 1)
+        let p1 = store.drawingURL(for: note, page: 1).path
+        store.deleteNotes(at: IndexSet(integer: 0))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: p1))
+    }
+
     // MARK: - Folders
 
     func testSetFolderPersistsAndListsFolders() {

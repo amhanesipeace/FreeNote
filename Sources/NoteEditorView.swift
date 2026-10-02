@@ -15,6 +15,8 @@ struct NoteEditorView: View {
     @State private var textBoxes: [TextBoxItem] = []
     @State private var showingStickerPicker = false
     @State private var photoItem: PhotosPickerItem?
+    @State private var currentPage = 0
+    @State private var pageCount = 1
 
     var body: some View {
         CanvasView(drawing: $drawing, template: template,
@@ -25,6 +27,19 @@ struct NoteEditorView: View {
             .navigationTitle(note.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    Button { goToPage(currentPage - 1) } label: {
+                        Image(systemName: "chevron.left")
+                    }.disabled(currentPage == 0)
+                    Text("\(currentPage + 1) / \(pageCount)")
+                        .font(.subheadline).monospacedDigit()
+                    Button { goToPage(currentPage + 1) } label: {
+                        Image(systemName: "chevron.right")
+                    }.disabled(currentPage >= pageCount - 1)
+                    Button(action: addPage) {
+                        Image(systemName: "plus.rectangle.on.rectangle")
+                    }
+                }
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         exportAndShare()
@@ -90,11 +105,39 @@ struct NoteEditorView: View {
     }
 
     private func saveStickers(_ items: [StickerItem]) {
-        store.saveStickers(items, for: note)
+        store.saveStickers(items, for: note, page: currentPage)
     }
 
     private func saveTextBoxes(_ items: [TextBoxItem]) {
-        store.saveTextBoxes(items, for: note)
+        store.saveTextBoxes(items, for: note, page: currentPage)
+    }
+
+    // MARK: - Pages
+
+    private func addPage() {
+        saveNow()
+        pageCount = store.addPage(to: note)
+        goToPage(pageCount - 1, save: false)   // jump to the new blank page
+    }
+
+    /// Switch pages: persist the current page, then load the target page.
+    private func goToPage(_ page: Int, save: Bool = true) {
+        guard page >= 0, page < pageCount else { return }
+        if save { saveNow() }
+        currentPage = page
+        loadPage()
+    }
+
+    /// Load the current page's content into the view state.
+    private func loadPage() {
+        stickers = store.loadStickers(for: note, page: currentPage)
+        textBoxes = store.loadTextBoxes(for: note, page: currentPage)
+        if let data = store.loadDrawingData(for: note, page: currentPage),
+           let existing = try? PKDrawing(data: data) {
+            drawing = existing
+        } else {
+            drawing = PKDrawing()
+        }
     }
 
     private func addTextBox() {
@@ -135,12 +178,9 @@ struct NoteEditorView: View {
     private func loadDrawing() {
         guard !loaded else { return }
         template = note.pageTemplate
-        stickers = store.loadStickers(for: note)
-        textBoxes = store.loadTextBoxes(for: note)
-        if let data = store.loadDrawingData(for: note),
-           let existing = try? PKDrawing(data: data) {
-            drawing = existing
-        }
+        pageCount = note.pages
+        currentPage = 0
+        loadPage()
         loaded = true
     }
 
@@ -159,6 +199,6 @@ struct NoteEditorView: View {
     }
 
     private func save(_ drawing: PKDrawing) {
-        store.saveDrawingData(drawing.dataRepresentation(), for: note)
+        store.saveDrawingData(drawing.dataRepresentation(), for: note, page: currentPage)
     }
 }
