@@ -127,12 +127,34 @@ enum NoteRenderer {
     /// Render to single-page PDF data.
     static func pdf(template: PageTemplate, drawing: PKDrawing,
                     stickers: [StickerItem], textBoxes: [TextBoxItem]) -> Data {
-        let img = image(template: template, drawing: drawing,
-                        stickers: stickers, textBoxes: textBoxes, outputWidth: 1400)
-        let bounds = CGRect(origin: .zero, size: img.size)
+        pdf(pages: [PageContent(template: template, drawing: drawing,
+                                stickers: stickers, textBoxes: textBoxes)])
+    }
+
+    /// One page's content, for multi-page export.
+    struct PageContent {
+        let template: PageTemplate
+        let drawing: PKDrawing
+        let stickers: [StickerItem]
+        let textBoxes: [TextBoxItem]
+    }
+
+    /// Render many pages into a single multi-page PDF (one PDF page each).
+    static func pdf(pages: [PageContent]) -> Data {
+        let imgs = pages.map {
+            image(template: $0.template, drawing: $0.drawing,
+                  stickers: $0.stickers, textBoxes: $0.textBoxes, outputWidth: 1400)
+        }
+        // Use the first page's size as the document bounds; each image is drawn
+        // to fit its own PDF page.
+        let bounds = CGRect(origin: .zero,
+                            size: imgs.first?.size ?? CGSize(width: 1400, height: 1870))
         return UIGraphicsPDFRenderer(bounds: bounds).pdfData { ctx in
-            ctx.beginPage()
-            img.draw(in: bounds)
+            for img in imgs {
+                ctx.beginPage(withBounds: CGRect(origin: .zero, size: img.size),
+                              pageInfo: [:])
+                img.draw(in: CGRect(origin: .zero, size: img.size))
+            }
         }
     }
 }

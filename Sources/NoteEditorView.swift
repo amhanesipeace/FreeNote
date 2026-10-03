@@ -146,15 +146,33 @@ struct NoteEditorView: View {
         saveTextBoxes(textBoxes)
     }
 
-    /// Render the note to PDF + PNG and present the iOS share sheet.
+    /// Render the note to PDF (all pages) + PNG (current page) and present the
+    /// iOS share sheet.
     private func exportAndShare() {
         saveNow()
         let title = note.title.isEmpty ? "Note" : note.title
         let dir = FileManager.default.temporaryDirectory
         var urls: [URL] = []
 
-        let pdf = NoteRenderer.pdf(template: template, drawing: drawing,
-                                   stickers: stickers, textBoxes: textBoxes)
+        // Gather every page's content from disk; use the just-saved in-memory
+        // content for the current page so unsaved edits are included.
+        var pages: [NoteRenderer.PageContent] = []
+        for p in 0..<pageCount {
+            let d: PKDrawing
+            let st: [StickerItem]
+            let tb: [TextBoxItem]
+            if p == currentPage {
+                d = drawing; st = stickers; tb = textBoxes
+            } else {
+                d = (try? PKDrawing(data: store.loadDrawingData(for: note, page: p)
+                                    ?? Data())) ?? PKDrawing()
+                st = store.loadStickers(for: note, page: p)
+                tb = store.loadTextBoxes(for: note, page: p)
+            }
+            pages.append(.init(template: template, drawing: d, stickers: st, textBoxes: tb))
+        }
+
+        let pdf = NoteRenderer.pdf(pages: pages)
         let pdfURL = dir.appendingPathComponent("\(title).pdf")
         if (try? pdf.write(to: pdfURL)) != nil { urls.append(pdfURL) }
 
